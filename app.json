@@ -48,7 +48,11 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
-    }
+      "router": {},
+      "eas": {
+        "projectId": "7995499e-db04-4804-ba77-5c002b7cf8d6"
+      }
+    },
+    "owner": "lartigue"
   }
 }
