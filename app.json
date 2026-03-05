@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "WalletBalanceAssistant",
+    "slug": "wallet-balance-assistant",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "wallet-balance-assistant",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0E1A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.walletbalance.assistant",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.walletbalance.assistant",
+          "group.com.walletbalance.assistant"
+        ]
+      },
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Utilisez Face ID pour sécuriser l'accès à vos données bancaires.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Utilisez Face ID pour accéder à vos données bancaires.",
+          "keychainAccessGroup": "group.com.walletbalance.assistant"
+        }
+      ],
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#4F78FF"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {}
+    }
+  }
+}
