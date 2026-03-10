@@ -50,7 +50,7 @@ interface BankActions {
   /** Charge les connexions bancaires. */
   fetchConnections: () => Promise<void>;
   /** Renouvelle le consentement d'une connexion expirée/expirante. */
-  renewConsent: (connectionId: string) => Promise<string | null>;
+  renewConsent: (connectionId: string, aspspName: string, aspspCountry: string) => Promise<string | null>;
   /** Charge le résumé des soldes. */
   fetchBalanceSummary: () => Promise<void>;
   /** Charge les mappings cartes. */
@@ -98,12 +98,12 @@ export const useBankStore = create<BankState & BankActions>((set) => ({
     }
   },
 
-  renewConsent: async (connectionId: string) => {
+  renewConsent: async (connectionId: string, aspspName: string, aspspCountry: string) => {
     try {
       set({ isLoading: true, error: null });
-      const { redirectUrl } = await renewBankConsent(connectionId);
+      const { link } = await renewBankConsent(connectionId, aspspName, aspspCountry);
       set({ isLoading: false });
-      return redirectUrl;
+      return link;
     } catch (error: unknown) {
       logger.error('Erreur renouvellement consentement', { error: String(error) });
       set({ error: 'Impossible de renouveler le consentement.', isLoading: false });
