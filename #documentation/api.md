@@ -7,12 +7,15 @@ Développement : http://localhost:8080/api/v1
 ```
 
 ## Authentification
-Toutes les routes (sauf register/login) requièrent :
+Toutes les routes (sauf health) requèrent un JWT Clerk :
 ```
-Authorization: Bearer <session_token>
+Authorization: Bearer <clerk_jwt>
 ```
 
-Les routes cron requièrent :
+L'authentification (inscription/connexion) est entièrement gérée par **Clerk** côté frontend.
+Le backend vérifie le JWT et upsert l'utilisateur automatiquement.
+
+Les routes cron requèrent :
 ```
 X-Cron-Key: <secret>
 ```
@@ -22,7 +25,7 @@ X-Cron-Key: <secret>
 |---|---|---|
 | `X-API-Version` | `1.0.0` | Version du contrat API client |
 | `X-App-Version` | `1.0.0` | Version de l'application (force update) |
-| `Authorization` | `Bearer <token>` | Session token (sauf register/login) |
+| `Authorization` | `Bearer <clerk_jwt>` | JWT Clerk (sauf health/cron) |
 | `X-Cron-Key` | `<secret>` | Uniquement pour les endpoints jobs |
 
 ---
@@ -31,47 +34,14 @@ X-Cron-Key: <secret>
 
 ### Auth
 
-#### POST /auth/register
-Inscription d'un nouvel utilisateur.
-
-**Body :**
-```json
-{ "email": "user@example.com", "password": "••••••••" }
-```
-
-**Réponse (201) :**
-```json
-{
-  "success": true,
-  "data": {
-    "user": { "id": "uuid", "email": "user@example.com", "createdAt": "..." },
-    "sessionToken": "uuid-v4"
-  }
-}
-```
-
-#### POST /auth/login
-Connexion utilisateur.
-
-**Body :** identique à register.  
-**Réponse (200) :** identique à register.
-
-#### POST /auth/logout
-Déconnexion (invalide le token).
-
-**Réponse (200) :**
-```json
-{ "success": true, "data": null }
-```
-
 #### GET /auth/me
-Infos utilisateur courant.
+Infos utilisateur courant (créé automatiquement au premier appel via le middleware Clerk).
 
 **Réponse (200) :**
 ```json
 {
   "success": true,
-  "data": { "id": "uuid", "email": "user@example.com", "createdAt": "..." }
+  "data": { "id": "uuid", "clerkUserId": "user_xxx", "email": "user@example.com", "createdAt": "..." }
 }
 ```
 
@@ -79,12 +49,38 @@ Infos utilisateur courant.
 
 ### Bank
 
-#### POST /bank/connect
-Initie une connexion Open Banking.
+#### GET /bank/institutions?country=FR
+Liste des banques disponibles pour un pays (via Enable Banking — code ISO 3166).
 
 **Réponse (200) :**
 ```json
-{ "success": true, "data": { "redirectUrl": "https://gocardless.com/..." } }
+{
+  "success": true,
+  "data": [
+    { "name": "Boursorama", "country": "FR", "bic": "BOUSFRPP", "logo": "https://..." }
+  ]
+}
+```
+
+#### POST /bank/connect
+Initie une connexion Open Banking via Enable Banking.
+
+**Body :**
+```json
+{ "aspspName": "Boursorama", "aspspCountry": "FR" }
+```
+
+**Réponse (200) :**
+```json
+{ "success": true, "data": { "link": "https://enablebanking.com/auth/...", "state": "uuid" } }
+```
+
+#### GET /bank/connect/complete?code=xxx&state=yyy
+Finalise la connexion après retour de la banque. Échange le code OAuth2 contre une session Enable Banking, importe les comptes et les soldes initiaux.
+
+**Réponse (200) :**
+```json
+{ "success": true, "data": { "status": "connected", "accountsImported": 2 } }
 ```
 
 #### GET /bank/accounts
@@ -110,7 +106,7 @@ Liste les connexions bancaires avec statut et expiration du consentement.
   "data": [
     {
       "id": "uuid",
-      "provider": "gocardless",
+      "provider": "enablebanking",
       "status": "active",
       "consentExpiresAt": "2026-06-01T00:00:00Z",
       "createdAt": "..."
@@ -122,9 +118,14 @@ Liste les connexions bancaires avec statut et expiration du consentement.
 #### POST /bank/connections/:id/renew
 Renouvelle le consentement PSD2 pour une connexion bancaire.
 
+**Body :**
+```json
+{ "aspspName": "Boursorama", "aspspCountry": "FR" }
+```
+
 **Réponse (200) :**
 ```json
-{ "success": true, "data": { "redirectUrl": "https://gocardless.com/..." } }
+{ "success": true, "data": { "link": "https://enablebanking.com/auth/...", "state": "uuid" } }
 ```
 
 #### DELETE /bank/connections/:id
@@ -231,7 +232,7 @@ Rafraîchit les soldes de tous les utilisateurs (appelé par GitHub Actions cron
 
 | Code HTTP | ErrorCode | Description |
 |---|---|---|
-| 401 | UNAUTHORIZED | Token invalide ou expiré |
+| 401 | UNAUTHORIZED | JWT Clerk invalide ou expiré |
 | 422 | VALIDATION | Données invalides |
 | 404 | NOT_FOUND | Ressource non trouvée |
 | 409 | BANK_CONSENT_EXPIRING | Consentement bancaire bientôt expiré |
