@@ -1,6 +1,6 @@
 /**
  * Root Layout — Point d'entrée de la navigation Expo Router.
- * Initialise la session, gère le splash screen et le routage auth/main.
+ * Initialise Clerk, gère le splash screen et le routage auth/main.
  */
 
 import { useEffect, useState } from 'react';
@@ -10,27 +10,35 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
+import { ClerkProvider, useAuth } from '@clerk/expo';
+import { tokenCache } from '@clerk/expo/token-cache';
+
 import { OfflineBanner, ToastContainer } from '@/components/shared';
 import { useBiometricAuth } from '@/hooks/useBiometricAuth';
-import { useAuthStore } from '@/stores/auth-store';
 import { useNetworkStore } from '@/stores/network-store';
+import { env } from '@/core/config/env';
 import { colors } from '@/theme/colors';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+const publishableKey = env.CLERK_PUBLISHABLE_KEY;
+
+if (!publishableKey) {
+  throw new Error('Ajoutez EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY dans le fichier .env');
+}
+
+/**
+ * Layout interne qui gère la navigation en fonction de l'état Clerk.
+ */
+function RootLayoutNav() {
   const [fontsLoaded] = useFonts({});
   const router = useRouter();
   const segments = useSegments();
 
-  const { user, isInitialized, initialize } = useAuthStore();
+  const { isSignedIn, isLoaded } = useAuth();
   const initializeNetwork = useNetworkStore((s) => s.initialize);
   const { isEnabled: biometricEnabled, authenticate, isLoading: biometricLoading } = useBiometricAuth();
   const [biometricPassed, setBiometricPassed] = useState(false);
-
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
 
   useEffect(() => {
     const unsubscribe = initializeNetwork();
@@ -38,32 +46,32 @@ export default function RootLayout() {
   }, [initializeNetwork]);
 
   useEffect(() => {
-    if (!isInitialized || biometricLoading) return;
+    if (!isLoaded || biometricLoading) return;
 
-    if (user && biometricEnabled && !biometricPassed) {
+    if (isSignedIn && biometricEnabled && !biometricPassed) {
       authenticate().then((success) => {
         setBiometricPassed(success);
       });
     } else {
       setBiometricPassed(true);
     }
-  }, [isInitialized, user, biometricEnabled, biometricLoading, biometricPassed, authenticate]);
+  }, [isLoaded, isSignedIn, biometricEnabled, biometricLoading, biometricPassed, authenticate]);
 
   useEffect(() => {
-    if (!isInitialized || !fontsLoaded || !biometricPassed) return;
+    if (!isLoaded || !fontsLoaded || !biometricPassed) return;
 
     SplashScreen.hideAsync();
 
     const inAuthGroup = segments[0] === '(auth)';
 
-    if (!user && !inAuthGroup) {
+    if (!isSignedIn && !inAuthGroup) {
       router.replace('/(auth)');
-    } else if (user && inAuthGroup) {
+    } else if (isSignedIn && inAuthGroup) {
       router.replace('/(main)');
     }
-  }, [user, isInitialized, fontsLoaded, biometricPassed, segments, router]);
+  }, [isSignedIn, isLoaded, fontsLoaded, biometricPassed, segments, router]);
 
-  if (!isInitialized || !fontsLoaded || !biometricPassed) {
+  if (!isLoaded || !fontsLoaded || !biometricPassed) {
     return null;
   }
 
@@ -83,5 +91,13 @@ export default function RootLayout() {
         <Stack.Screen name="(main)" />
       </Stack>
     </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <RootLayoutNav />
+    </ClerkProvider>
   );
 }

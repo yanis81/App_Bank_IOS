@@ -8,8 +8,9 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Switch } from 'react-nat
 
 import { useRouter } from 'expo-router';
 
+import { useClerk, useUser } from '@clerk/expo';
+
 import { useBankStore } from '@/stores/bank-store';
-import { useAuthStore } from '@/stores/auth-store';
 import { useBiometricAuth } from '@/hooks/useBiometricAuth';
 import { hapticSelection, hapticMedium } from '@/core/utils/haptics';
 import { colors } from '@/theme/colors';
@@ -19,7 +20,8 @@ import { radius } from '@/theme/shared';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user } = useUser();
+  const { signOut } = useClerk();
   const { notificationSettings, fetchSettings, saveSettings } = useBankStore();
   const { isAvailable: isBiometricAvailable, biometricType, isEnabled: isBiometricEnabled, setEnabled: setBiometricEnabled } = useBiometricAuth();
 
@@ -39,8 +41,8 @@ export default function SettingsScreen() {
 
   const handleLogout = useCallback(async () => {
     hapticMedium();
-    await logout();
-  }, [logout]);
+    await signOut();
+  }, [signOut]);
 
   return (
     <ScrollView
@@ -62,7 +64,7 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Compte</Text>
         <View style={styles.row}>
           <Text style={styles.rowLabel}>Email</Text>
-          <Text style={styles.rowValue}>{user?.email}</Text>
+          <Text style={styles.rowValue}>{user?.primaryEmailAddress?.emailAddress}</Text>
         </View>
       </View>
 

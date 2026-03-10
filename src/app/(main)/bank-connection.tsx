@@ -1,9 +1,9 @@
 /**
  * Écran de connexion bancaire.
- * Initie le flux Open Banking via GoCardless.
+ * Permet à l'utilisateur de choisir sa banque et d'initier le flux Open Banking via Enable Banking.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,85 +11,143 @@ import {
   Pressable,
   ActivityIndicator,
   Linking,
+  FlatList,
+  TextInput,
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
 
-import { initiateConnection } from '@/data/api/endpoints';
+import { getInstitutions, initiateConnection } from '@/data/api/endpoints';
 import { logger } from '@/core/logger';
 import { colors } from '@/theme/colors';
 import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/shared';
+import type { Institution } from '@/domain/entities';
 
 export default function BankConnectionScreen() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [step, setStep] = useState<'select' | 'connecting'>('select');
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [filtered, setFiltered] = useState<Institution[]>([]);
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Institution | null>(null);
+  const [isLoadingList, setIsLoadingList] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    getInstitutions('FR')
+      .then((list) => {
+        setInstitutions(list);
+        setFiltered(list);
+      })
+      .catch((err: unknown) => {
+        logger.error('Erreur chargement banques', { error: String(err) });
+        setError('Impossible de charger la liste des banques.');
+      })
+      .finally(() => setIsLoadingList(false));
+  }, []);
+
+  const handleSearch = useCallback((text: string) => {
+    setSearch(text);
+    const q = text.toLowerCase();
+    setFiltered(
+      institutions.filter(
+        (i) => i.name.toLowerCase().includes(q) || i.bic.toLowerCase().includes(q),
+      ),
+    );
+  }, [institutions]);
+
   const handleConnect = useCallback(async () => {
+    if (!selected) return;
     try {
-      setIsLoading(true);
+      setIsConnecting(true);
       setError(null);
-      const { redirectUrl } = await initiateConnection();
-      await Linking.openURL(redirectUrl);
+      const { link } = await initiateConnection(selected.name, selected.country);
+      await Linking.openURL(link);
     } catch (err: unknown) {
       logger.error('Erreur connexion bancaire', { error: String(err) });
       setError('Impossible de lancer la connexion bancaire. Réessayez.');
     } finally {
-      setIsLoading(false);
+      setIsConnecting(false);
     }
-  }, []);
+  }, [selected]);
+
+  if (step === 'connecting') return null;
 
   return (
     <View style={styles.container}>
-      <Pressable
-        style={styles.backButton}
-        onPress={() => router.back()}
-        accessibilityLabel="Retour"
-      >
+      <Pressable style={styles.backButton} onPress={() => router.back()} accessibilityLabel="Retour">
         <Text style={styles.backText}>← Retour</Text>
       </Pressable>
 
-      <View style={styles.content}>
+      <View style={styles.header}>
         <Text style={styles.emoji}>🏦</Text>
-        <Text style={styles.title}>Connexion bancaire</Text>
+        <Text style={styles.title}>Choisissez votre banque</Text>
         <Text style={styles.description}>
-          Connectez votre banque en toute sécurité via Open Banking.
-          Vos identifiants ne transitent jamais par notre application.
+          Votre banque se charge de l'authentification.{'\n'}
+          Nous n'accédons qu'à vos soldes.
         </Text>
+      </View>
 
-        <View style={styles.features}>
-          <View style={styles.featureRow}>
-            <Text style={styles.featureIcon}>🔒</Text>
-            <Text style={styles.featureText}>Connexion sécurisée et chiffrée</Text>
-          </View>
-          <View style={styles.featureRow}>
-            <Text style={styles.featureIcon}>🏛️</Text>
-            <Text style={styles.featureText}>2 400+ banques européennes</Text>
-          </View>
-          <View style={styles.featureRow}>
-            <Text style={styles.featureIcon}>📖</Text>
-            <Text style={styles.featureText}>Accès lecture seule (soldes uniquement)</Text>
-          </View>
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Rechercher une banque..."
+        placeholderTextColor={colors.text.tertiary}
+        value={search}
+        onChangeText={handleSearch}
+        autoCorrect={false}
+        autoCapitalize="none"
+        accessibilityLabel="Rechercher une banque"
+      />
+
+      {isLoadingList ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.accent.primary} />
         </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => `${item.country}-${item.name}`}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>Aucune banque trouvée pour « {search} »</Text>
+          }
+          renderItem={({ item }) => (
+            <Pressable
+              style={[styles.bankRow, selected?.name === item.name && styles.bankRowSelected]}
+              onPress={() => setSelected(item)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: selected?.name === item.name }}
+            >
+              <Text style={styles.bankName}>{item.name}</Text>
+              <Text style={styles.bankBic}>{item.bic}</Text>
+              {selected?.name === item.name && <Text style={styles.checkmark}>✓</Text>}
+            </Pressable>
+          )}
+        />
+      )}
 
-        {error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
+      {error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
 
+      <View style={styles.footer}>
         <Pressable
-          style={[styles.connectButton, isLoading && styles.connectButtonDisabled]}
+          style={[styles.connectButton, (!selected || isConnecting) && styles.connectButtonDisabled]}
           onPress={handleConnect}
-          disabled={isLoading}
+          disabled={!selected || isConnecting}
           accessibilityLabel="Connecter ma banque"
         >
-          {isLoading ? (
+          {isConnecting ? (
             <ActivityIndicator color={colors.text.primary} />
           ) : (
-            <Text style={styles.connectButtonText}>Connecter ma banque</Text>
+            <Text style={styles.connectButtonText}>
+              {selected ? `Connecter ${selected.name}` : 'Sélectionnez une banque'}
+            </Text>
           )}
         </Pressable>
       </View>
@@ -105,21 +163,20 @@ const styles = StyleSheet.create({
   backButton: {
     paddingTop: spacing['5xl'],
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   backText: {
     ...typography.body,
     color: colors.text.link,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing['2xl'],
+  header: {
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.lg,
+    paddingHorizontal: spacing['2xl'],
+    paddingBottom: spacing.lg,
+    gap: spacing.sm,
   },
   emoji: {
-    fontSize: 64,
+    fontSize: 48,
   },
   title: {
     ...typography.h2,
@@ -130,55 +187,91 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.secondary,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
   },
-  features: {
-    alignSelf: 'stretch',
+  searchInput: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
     backgroundColor: colors.background.card,
     borderRadius: radius.md,
-    padding: spacing.xl,
-    gap: spacing.md,
     borderWidth: 1,
     borderColor: colors.border.default,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    ...typography.body,
+    color: colors.text.primary,
   },
-  featureRow: {
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  list: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  bankRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    backgroundColor: colors.background.card,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
-  featureIcon: {
-    fontSize: 20,
+  bankRowSelected: {
+    borderColor: colors.accent.primary,
+    backgroundColor: 'rgba(99, 102, 241, 0.07)',
   },
-  featureText: {
+  bankName: {
     ...typography.body,
     color: colors.text.primary,
     flex: 1,
   },
+  bankBic: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+  },
+  checkmark: {
+    fontSize: 16,
+    color: colors.accent.primary,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    paddingVertical: spacing['2xl'],
+  },
   errorContainer: {
+    marginHorizontal: spacing.xl,
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderRadius: radius.sm,
     padding: spacing.md,
-    alignSelf: 'stretch',
   },
   errorText: {
     ...typography.caption,
     color: colors.semantic.error,
     textAlign: 'center',
   },
+  footer: {
+    padding: spacing.xl,
+    paddingBottom: spacing['3xl'],
+  },
   connectButton: {
     backgroundColor: colors.accent.primary,
     paddingVertical: spacing.lg,
-    paddingHorizontal: spacing['4xl'],
     borderRadius: radius.md,
     alignItems: 'center',
-    alignSelf: 'stretch',
-    marginTop: spacing.lg,
   },
   connectButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   connectButtonText: {
     ...typography.button,
     color: colors.text.primary,
   },
 });
+

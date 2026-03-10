@@ -17,11 +17,12 @@ import {
 
 import { useRouter } from 'expo-router';
 
+import { useUser } from '@clerk/expo';
+
 import { ConsentExpiryBanner } from '@/components/shared';
 import { FreshnessIndicator } from '@/components/shared';
 import { SkeletonBalanceCard, SkeletonActionList } from '@/components/ui/Skeleton';
 import { useBankStore } from '@/stores/bank-store';
-import { useAuthStore } from '@/stores/auth-store';
 import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
 import { isConnectionExpiringSoon } from '@/domain/entities';
 import { formatCurrency } from '@/core/utils';
@@ -32,7 +33,7 @@ import { radius, shadows } from '@/theme/shared';
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user } = useUser();
   const {
     balanceSummary,
     accounts,
@@ -60,11 +61,13 @@ export default function DashboardScreen() {
   }, [fetchBalanceSummary, fetchAccounts, fetchConnections]);
 
   const handleRenewConsent = useCallback(async (connectionId: string) => {
-    const redirectUrl = await renewConsent(connectionId);
-    if (redirectUrl) {
-      await Linking.openURL(redirectUrl);
+    const conn = connections.find((c) => c.id === connectionId);
+    if (!conn) return;
+    const link = await renewConsent(connectionId, conn.aspspName, conn.aspspCountry);
+    if (link) {
+      await Linking.openURL(link);
     }
-  }, [renewConsent]);
+  }, [connections, renewConsent]);
 
   const isPrivacyMode = notificationSettings?.privacyMode ?? false;
   const hasAccounts = accounts.length > 0;
@@ -86,7 +89,7 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Bonjour 👋</Text>
-          <Text style={styles.email}>{user?.email}</Text>
+          <Text style={styles.email}>{user?.primaryEmailAddress?.emailAddress}</Text>
         </View>
         <Pressable
           style={styles.settingsButton}
@@ -166,7 +169,7 @@ export default function DashboardScreen() {
             <Pressable
               key={step.id}
               style={styles.actionCard}
-              onPress={() => router.push(step.route as `/${string}`)}
+              onPress={() => router.push(step.route as import('expo-router').Href)}
               accessibilityLabel={step.title}
             >
               <Text style={styles.actionEmoji}>{step.emoji}</Text>
