@@ -1,6 +1,6 @@
 /**
- * Écran de connexion avec Clerk v3.
- * Formulaire email + mot de passe utilisant useSignIn() (Signal API).
+ * Écran d'inscription avec Clerk v3.
+ * Formulaire email + mot de passe + vérification par code email (Signal API).
  */
 
 import { useState, useCallback } from 'react';
@@ -17,22 +17,25 @@ import {
 
 import { useRouter } from 'expo-router';
 
-import { useSignIn } from '@clerk/expo';
+import { useSignUp } from '@clerk/expo';
 
 import { colors } from '@/theme/colors';
 import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/shared';
 
-export default function LoginScreen() {
-  const { signIn, fetchStatus } = useSignIn();
+export default function SignUpScreen() {
+  const { signUp, fetchStatus } = useSignUp();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [pendingVerification, setPendingVerification] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /** Soumet le formulaire d'inscription et envoie le code de vérification. */
   const handleSubmit = useCallback(async () => {
     if (!email.trim() || !password.trim()) return;
 
@@ -40,39 +43,146 @@ export default function LoginScreen() {
     setError(null);
 
     try {
-      const createResult = await signIn.create({ identifier: email.trim() });
+      const createResult = await signUp.create({ emailAddress: email.trim() });
       if (createResult.error) {
-        setError(createResult.error.message ?? 'Erreur de connexion');
+        setError(createResult.error.message ?? 'Erreur d\'inscription');
         return;
       }
 
-      const passwordResult = await signIn.password({ password });
+      const passwordResult = await signUp.password({ password });
       if (passwordResult.error) {
-        setError(passwordResult.error.message ?? 'Mot de passe incorrect');
+        setError(passwordResult.error.message ?? 'Mot de passe invalide');
         return;
       }
 
-      if (signIn.status === 'complete') {
-        const finalizeResult = await signIn.finalize();
-        if (finalizeResult.error) {
-          setError(finalizeResult.error.message ?? 'Erreur de finalisation');
-        }
-      } else if (signIn.status === 'needs_second_factor') {
-        setError('L\'authentification 2FA n\'est pas encore supportée.');
-      } else {
-        setError('Connexion incomplète. Veuillez réessayer.');
+      const sendCodeResult = await signUp.verifications.sendEmailCode();
+      if (sendCodeResult.error) {
+        setError(sendCodeResult.error.message ?? 'Impossible d\'envoyer le code');
+        return;
       }
+
+      setPendingVerification(true);
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errors' in err) {
         const clerkErr = err as { errors: Array<{ message: string }> };
-        setError(clerkErr.errors[0]?.message ?? 'Erreur de connexion');
+        setError(clerkErr.errors[0]?.message ?? 'Erreur d\'inscription');
       } else {
-        setError('Erreur de connexion. Vérifiez vos identifiants.');
+        setError('Erreur d\'inscription. Veuillez réessayer.');
       }
     } finally {
       setIsLoading(false);
     }
-  }, [email, password, signIn]);
+  }, [email, password, signUp]);
+
+  /** Vérifie le code email et finalise l'inscription. */
+  const handleVerify = useCallback(async () => {
+    if (!code.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const verifyResult = await signUp.verifications.verifyEmailCode({ code: code.trim() });
+      if (verifyResult.error) {
+        setError(verifyResult.error.message ?? 'Code invalide');
+        return;
+      }
+
+      if (signUp.status === 'complete') {
+        const finalizeResult = await signUp.finalize();
+        if (finalizeResult.error) {
+          setError(finalizeResult.error.message ?? 'Erreur de finalisation');
+        }
+      } else {
+        setError('Vérification incomplète. Veuillez réessayer.');
+      }
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errors' in err) {
+        const clerkErr = err as { errors: Array<{ message: string }> };
+        setError(clerkErr.errors[0]?.message ?? 'Code invalide');
+      } else {
+        setError('Code invalide. Veuillez réessayer.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [code, signUp]);
+
+  /** Renvoie le code de vérification. */
+  const handleResendCode = useCallback(async () => {
+    setError(null);
+
+    try {
+      const result = await signUp.verifications.sendEmailCode();
+      if (result.error) {
+        setError(result.error.message ?? 'Impossible de renvoyer le code.');
+      }
+    } catch {
+      setError('Impossible de renvoyer le code.');
+    }
+  }, [signUp]);
+
+  if (pendingVerification) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.emoji}>📧</Text>
+            <Text style={styles.title}>Vérification</Text>
+            <Text style={styles.subtitle}>
+              Entrez le code envoyé à {email}
+            </Text>
+          </View>
+
+          <View style={styles.form}>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Code de vérification</Text>
+              <TextInput
+                style={styles.input}
+                value={code}
+                onChangeText={setCode}
+                placeholder="123456"
+                placeholderTextColor={colors.text.tertiary}
+                keyboardType="number-pad"
+                autoComplete="one-time-code"
+                editable={!isLoading}
+                accessibilityLabel="Code de vérification"
+              />
+            </View>
+
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            <Pressable
+              style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+              onPress={handleVerify}
+              disabled={isLoading || !code.trim()}
+              accessibilityLabel="Vérifier"
+            >
+              {isLoading ? (
+                <ActivityIndicator color={colors.text.primary} />
+              ) : (
+                <Text style={styles.submitButtonText}>Vérifier</Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              style={styles.resendButton}
+              onPress={handleResendCode}
+            >
+              <Text style={styles.toggleText}>Renvoyer le code</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -82,8 +192,8 @@ export default function LoginScreen() {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.emoji}>💳</Text>
-          <Text style={styles.title}>Connexion</Text>
-          <Text style={styles.subtitle}>Connectez-vous à votre compte</Text>
+          <Text style={styles.title}>Créer un compte</Text>
+          <Text style={styles.subtitle}>Inscrivez-vous pour commencer</Text>
         </View>
 
         <View style={styles.form}>
@@ -113,7 +223,7 @@ export default function LoginScreen() {
               placeholder="••••••••"
               placeholderTextColor={colors.text.tertiary}
               secureTextEntry
-              autoComplete="password"
+              autoComplete="new-password"
               editable={!isLoading}
               accessibilityLabel="Mot de passe"
             />
@@ -129,21 +239,21 @@ export default function LoginScreen() {
             style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={isLoading || !email.trim() || !password.trim()}
-            accessibilityLabel="Se connecter"
+            accessibilityLabel="S'inscrire"
           >
             {isLoading ? (
               <ActivityIndicator color={colors.text.primary} />
             ) : (
-              <Text style={styles.submitButtonText}>Se connecter</Text>
+              <Text style={styles.submitButtonText}>S'inscrire</Text>
             )}
           </Pressable>
         </View>
 
         <Pressable
           style={styles.toggleButton}
-          onPress={() => router.push('/sign-up')}
+          onPress={() => router.push('/(auth)/login')}
         >
-          <Text style={styles.toggleText}>Pas de compte ? S'inscrire</Text>
+          <Text style={styles.toggleText}>Déjà un compte ? Se connecter</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -176,6 +286,7 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.caption,
     color: colors.text.secondary,
+    textAlign: 'center',
   },
   form: {
     gap: spacing.lg,
@@ -224,6 +335,10 @@ const styles = StyleSheet.create({
   toggleButton: {
     alignItems: 'center',
     marginTop: spacing['2xl'],
+    padding: spacing.sm,
+  },
+  resendButton: {
+    alignItems: 'center',
     padding: spacing.sm,
   },
   toggleText: {
