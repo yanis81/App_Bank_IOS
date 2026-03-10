@@ -24,8 +24,10 @@ export function useBankConnections() {
   const hasExpiringConnections = expiringConnections.length > 0;
 
   const handleRenewConsent = useCallback(async (connectionId: string) => {
-    return renewConsent(connectionId);
-  }, [renewConsent]);
+    const conn = connections.find((c) => c.id === connectionId);
+    if (!conn) return null;
+    return renewConsent(connectionId, conn.aspspName, conn.aspspCountry);
+  }, [connections, renewConsent]);
 
   return {
     connections,
