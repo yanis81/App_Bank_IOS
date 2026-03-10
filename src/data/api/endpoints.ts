@@ -5,38 +5,9 @@
  */
 
 import { api } from './api-client';
-import type { BalanceSummary, BankAccount, BankConnection, NotificationSettings, User, WalletCardBalance, WalletCardMapping } from '@/domain/entities';
+import type { BalanceSummary, BankAccount, BankConnection, Institution, NotificationSettings, User, WalletCardBalance, WalletCardMapping } from '@/domain/entities';
 
 // ─── Auth ────────────────────────────────────────────────────────
-
-/**
- * Inscrit un nouvel utilisateur.
- */
-export function registerUser(email: string, password: string) {
-  return api.post<{ user: User; sessionToken: string }>(
-    '/auth/register',
-    { email, password },
-    true,
-  );
-}
-
-/**
- * Connecte un utilisateur existant.
- */
-export function loginUser(email: string, password: string) {
-  return api.post<{ user: User; sessionToken: string }>(
-    '/auth/login',
-    { email, password },
-    true,
-  );
-}
-
-/**
- * Déconnecte l'utilisateur courant.
- */
-export function logoutUser() {
-  return api.post<void>('/auth/logout');
-}
 
 /**
  * Récupère les informations de l'utilisateur courant.
@@ -48,19 +19,50 @@ export function getMe() {
 // ─── Bank ────────────────────────────────────────────────────────
 
 /**
- * Initie une connexion Open Banking.
+ * Liste les banques disponibles (ASPSP) pour un pays donné.
+ *
+ * @param country - Code ISO 3166 du pays (ex. "FR").
  */
-export function initiateConnection() {
-  return api.post<{ redirectUrl: string }>('/bank/connect');
+export function getInstitutions(country: string = 'FR') {
+  return api.get<Institution[]>(`/bank/institutions?country=${encodeURIComponent(country)}`);
 }
 
 /**
- * Ré-initie le consentement pour une connexion existante (re-consentement PSD2).
+ * Initie une connexion Open Banking via Enable Banking.
+ * Retourne l'URL de redirection vers laquelle ouvrir le navigateur.
+ *
+ * @param aspspName - Nom exact de la banque (ex. "Boursorama").
+ * @param aspspCountry - Code pays ISO 3166 de la banque (ex. "FR").
+ */
+export function initiateConnection(aspspName: string, aspspCountry: string) {
+  return api.post<{ link: string; state: string }>('/bank/connect', { aspspName, aspspCountry });
+}
+
+/**
+ * Finalise la connexion bancaire après retour du deep link Enable Banking.
+ * Échange le code OAuth2 contre une session et importe les comptes.
+ *
+ * @param code - Code OAuth2 reçu dans le deep link.
+ * @param state - State UUID reçu dans le deep link (pour retrouver la connexion en DB).
+ */
+export function completeBankConnection(code: string, state: string) {
+  return api.get<{ status: string; accountsImported: number }>(
+    `/bank/connect/complete?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`
+  );
+}
+
+/**
+ * Ré-initie le consentement PSD2 pour une connexion existante.
  *
  * @param connectionId - ID de la connexion à renouveler.
+ * @param aspspName - Nom de la banque.
+ * @param aspspCountry - Code pays de la banque.
  */
-export function renewBankConsent(connectionId: string) {
-  return api.post<{ redirectUrl: string }>(`/bank/connections/${encodeURIComponent(connectionId)}/renew`);
+export function renewBankConsent(connectionId: string, aspspName: string, aspspCountry: string) {
+  return api.post<{ link: string; state: string }>(
+    `/bank/connections/${encodeURIComponent(connectionId)}/renew`,
+    { aspspName, aspspCountry }
+  );
 }
 
 /**

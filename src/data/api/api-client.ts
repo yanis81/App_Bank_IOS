@@ -1,17 +1,18 @@
 /**
  * Client HTTP centralisé pour l'API backend.
- * Gère l'authentification, les timeouts, le retry et la sérialisation.
+ * Utilise le JWT Clerk pour l'authentification.
+ * Gère les timeouts, le retry et la sérialisation.
  *
  * @module data/api/api-client
  */
+
+import { getClerkInstance } from '@clerk/expo';
 
 import { env } from '@/core/config/env';
 import { NETWORK_TIMEOUT_MS, MAX_RETRY_ATTEMPTS, RETRY_BASE_DELAY_MS, API_V1_PREFIX, API_CLIENT_VERSION, APP_VERSION } from '@/core/config/constants';
 import { NetworkError, UnauthorizedError } from '@/core/errors';
 import { logger } from '@/core/logger';
 import type { ApiResult } from '@/core/types';
-import { secureStorage } from '@/data/storage/secure-storage';
-import { SECURE_STORE_SESSION_TOKEN_KEY } from '@/core/config/constants';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
@@ -71,7 +72,8 @@ export async function apiRequest<T>(options: RequestOptions): Promise<T> {
   };
 
   if (!skipAuth) {
-    const token = await secureStorage.get(SECURE_STORE_SESSION_TOKEN_KEY);
+    const clerk = getClerkInstance();
+    const token = await clerk.session?.getToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
