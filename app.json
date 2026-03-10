@@ -17,7 +17,6 @@
       "bundleIdentifier": "com.walletbalance.assistant",
       "entitlements": {
         "com.apple.security.application-groups": [
-          "group.com.walletbalance.assistant",
           "group.com.walletbalance.assistant"
         ]
       },

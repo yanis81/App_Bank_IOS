@@ -5,33 +5,17 @@
  * @module core/config/env
  */
 
-import Constants from 'expo-constants';
-
 interface EnvConfig {
+  /** URL de base de l'API backend. */
   readonly API_BASE_URL: string;
-  readonly SUPABASE_URL: string;
-  readonly SUPABASE_ANON_KEY: string;
+  /** Clé publique Clerk pour l'authentification. */
+  readonly CLERK_PUBLISHABLE_KEY: string;
+  /** Indique si l'app tourne en mode développement. */
   readonly IS_DEV: boolean;
 }
 
-/**
- * Récupère une variable d'environnement depuis les extra d'Expo.
- *
- * @param key - Clé de la variable d'environnement.
- * @param fallback - Valeur par défaut si la variable n'est pas définie.
- * @returns La valeur de la variable d'environnement.
- */
-function getEnvVar(key: string, fallback: string = ''): string {
-  const extras = Constants.expoConfig?.extra;
-  if (extras && typeof extras === 'object' && key in extras) {
-    return String(extras[key]);
-  }
-  return fallback;
-}
-
 export const env: EnvConfig = {
-  API_BASE_URL: getEnvVar('API_BASE_URL', 'http://localhost:8080'),
-  SUPABASE_URL: getEnvVar('SUPABASE_URL'),
-  SUPABASE_ANON_KEY: getEnvVar('SUPABASE_ANON_KEY'),
+  API_BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:8080',
+  CLERK_PUBLISHABLE_KEY: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '',
   IS_DEV: __DEV__,
 } as const;
