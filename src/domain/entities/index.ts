@@ -17,6 +17,10 @@ export interface BankConnection {
   readonly id: string;
   readonly userId: string;
   readonly provider: string;
+  /** Nom ASPSP de la banque (ex: "BNP Paribas"). */
+  readonly aspspName: string;
+  /** Code pays de la banque (ex: "FR"). */
+  readonly aspspCountry: string;
   readonly status: BankConnectionStatus;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -72,6 +76,14 @@ export interface BankAccount {
   readonly maskedIban: string | null;
   readonly currency: string;
   readonly createdAt: string;
+}
+
+/** Banque disponible via Enable Banking (ASPSP). */
+export interface Institution {
+  readonly name: string;
+  readonly country: string;
+  readonly bic: string;
+  readonly logo: string;
 }
 
 /** Solde d'un compte bancaire. */
