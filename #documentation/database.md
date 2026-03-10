@@ -1,7 +1,9 @@
 # Base de données — Wallet Balance Assistant
 
 ## Provider
-**Supabase** (PostgreSQL, free tier : 500 MB, 50k MAU auth)
+**Neon** (PostgreSQL serverless, free tier : 0.5 GB, 100 branches)
+
+URL de connexion : `ep-divine-tooth-ag6hn4d9-pooler.c-2.eu-central-1.aws.neon.tech` (pooler)
 
 ---
 
@@ -11,9 +13,10 @@
 | Colonne | Type | Contraintes |
 |---|---|---|
 | id | UUID | PK, gen_random_uuid() |
+| clerk_user_id | TEXT | UNIQUE, NOT NULL |
 | email | TEXT | UNIQUE, NOT NULL |
-| session_token | TEXT | UNIQUE, NOT NULL |
 | created_at | TIMESTAMPTZ | DEFAULT NOW() |
+| updated_at | TIMESTAMPTZ | DEFAULT NOW() |
 
 ### bank_connections
 | Colonne | Type | Contraintes |

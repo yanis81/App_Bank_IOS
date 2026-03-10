@@ -14,7 +14,7 @@
 | 1 | **Hash SHA-256 session tokens** — Les tokens sont hashés via `expo-crypto` avant stockage DB | `core/utils/hash.ts` | ✅ |
 | 2 | **App Group Keychain** — Partage du Keychain entre l'app et les App Intents via App Group | `app.json` | ✅ |
 | 3 | **Cache fallback offline** — Soldes cachés dans le Keychain partagé pour affichage < 1s | `data/storage/shared-cache.ts`, `stores/bank-store.ts` | ✅ |
-| 4 | **Re-consentement GoCardless (PSD2)** — Bannière d'alerte + renouvellement automatique | `components/shared/ConsentExpiryBanner.tsx`, `domain/entities/`, `data/api/endpoints.ts` | ✅ |
+| 4 | **Re-consentement Enable Banking (PSD2)** — Bannière d'alerte + renouvellement automatique | `components/shared/ConsentExpiryBanner.tsx`, `domain/entities/`, `data/api/endpoints.ts` | ✅ |
 | 5 | **Onboarding progressif** — CTA contextuels + barre de progression au lieu d'un tunnel | `hooks/useOnboardingProgress.ts`, `app/(main)/index.tsx` | ✅ |
 | 6 | **Versioning API** — Headers `X-API-Version` et `X-App-Version` sur chaque requête | `data/api/api-client.ts`, `core/config/constants.ts` | ✅ |
 | 7 | **Mode confidentialité** — Montants masqués `••••••` sur le dashboard et notifications | `app/(main)/index.tsx`, `app/(main)/settings.tsx` | ✅ |
@@ -29,7 +29,7 @@
 | 11 | **Repositories implémentés** — Implémentation des ports du domaine | `data/repositories/*.ts` (5 fichiers) | ✅ |
 | 12 | **Network status & offline** — Détection réseau + bandeau "Hors connexion" | `stores/network-store.ts`, `components/shared/OfflineBanner.tsx` | ✅ |
 | 13 | **Biométrie Face ID** — Protection Face ID/Touch ID au lancement + toggle Settings | `hooks/useBiometricAuth.ts`, `app/_layout.tsx`, `app/(main)/settings.tsx` | ✅ |
-| 14 | **Deep linking post-auth** — Callback GoCardless → redirection auto vers sélection comptes | `app/(main)/bank-callback.tsx` | ✅ |
+| 14 | **Deep linking post-auth** — Callback Enable Banking → redirection auto vers sélection comptes | `app/(main)/bank-callback.tsx` | ✅ |
 | 15 | **Indicateur de fraîcheur** — Badge coloré (vert/orange/rouge) selon ancienneté des données | `components/shared/FreshnessIndicator.tsx`, dashboard | ✅ |
 | 16 | **Skeleton loading** — Effet shimmer au lieu des spinners pour le chargement initial | `components/ui/Skeleton.tsx`, dashboard | ✅ |
 | 17 | **Haptic feedback** — Retour tactile sur toggles, CTA et logout | `core/utils/haptics.ts`, settings | ✅ |

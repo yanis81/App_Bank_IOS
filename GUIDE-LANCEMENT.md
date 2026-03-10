@@ -134,6 +134,6 @@ Garde le code tel quel et parcours les écrans auth :
 
 1. **Backend Go** : Implémenter les endpoints API (voir `#documentation/api.md`)
 2. **Supabase** : Configurer la base de données (voir `#documentation/database.md`)
-3. **GoCardless** : Obtenir les clés API pour l'Open Banking
+3. **Enable Banking** : Créer un compte sur [enablebanking.com](https://enablebanking.com) pour l'Open Banking
 4. **Tests** : Ajouter les tests unitaires sur le domaine
 5. **EAS Build** : Configurer la build iOS native pour les App Intents

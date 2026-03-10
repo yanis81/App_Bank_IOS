@@ -23,14 +23,15 @@
 
 | Couche | Technologie |
 |---|---|
-| Frontend | Expo SDK 54, React Native, TypeScript (strict) |
+| Frontend | Expo SDK 55, React Native 0.83, TypeScript (strict) |
 | Navigation | Expo Router (file-based) |
 | State | Zustand |
-| Backend | Go + Chi |
-| Database | Supabase (PostgreSQL) |
+| Backend | Go 1.26 + Chi v5 |
+| Database | Neon (PostgreSQL serverless) |
 | Native | Swift (App Intents, Expo Modules API) |
-| Auth | Session tokens (Keychain iOS) |
+| Auth | Clerk (@clerk/expo v3) |
 | Open Banking | GoCardless Bank Account Data |
+| Chiffrement | AES-256-GCM (tokens bancaires) |
 
 ---
 
@@ -48,4 +49,13 @@ src/
 ├── theme/         → Design tokens
 ├── i18n/          → Traductions
 └── assets/        → Images, fonts
+
+modules/
+└── wallet-bridge/ → Module natif Swift (App Intents + Keychain partagé)
+
+backend/
+├── cmd/server/    → Point d'entrée Go
+├── internal/      → API, handlers, repository, banking, crypto
+├── migrations/    → SQL
+└── config/        → Env vars
 ```

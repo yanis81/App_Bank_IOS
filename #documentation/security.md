@@ -13,34 +13,36 @@
 ### Côté client (iOS)
 | Donnée | Mécanisme |
 |---|---|
-| `session_token` | **iOS Keychain** via `expo-secure-store` (App Group partagé) |
-| Cache soldes (fallback offline) | **Keychain partagé** (App Group `group.com.walletbalance.assistant`) |
+| Token Clerk JWT | Géré par **@clerk/expo** (stockage interne sécurisé) |
+| Token partagé (App Intents) | **iOS Keychain** via App Group `group.com.walletbalance.assistant` |
+| Cache soldes (fallback offline) | **App Group UserDefaults** (accès rapide < 1s) |
 | Données de session | Zustand (mémoire, non persisté) |
 
 - Aucun secret dans AsyncStorage, logs ou state non protégé.
-- **App Group** `group.com.walletbalance.assistant` : permet aux App Intents Swift d'accéder au même Keychain que l'app React Native.
-- Le cache de soldes dans le Keychain partagé permet l'affichage offline < 1 seconde via les App Intents.
-- Si l'app est supprimée, le token Keychain peut être nettoyé au prochain login.
+- **App Group** `group.com.walletbalance.assistant` : permet aux App Intents Swift d'accéder au même Keychain et UserDefaults que l'app React Native.
+- Le cache de soldes dans l'App Group permet l'affichage offline < 1 seconde via les App Intents.
+- Si l'app est supprimée, les App Intents disparaissent automatiquement.
 
 ### Côté serveur
 | Donnée | Mécanisme |
 |---|---|
-| Tokens bancaires (access/refresh) | **AES-256-GCM** chiffrement avant stockage en DB |
-| Session tokens | UUID v4, **hashés SHA-256** avant stockage en DB |
-| Clé de chiffrement AES | Variable d'environnement serveur (`ENCRYPTION_KEY`) |
-| Clé cron | Variable d'environnement (`CRON_SECRET_KEY`) |
+| Tokens bancaires (access/refresh GoCardless) | **AES-256-GCM** chiffrement avant stockage en DB |
+| Auth utilisateurs | **Clerk** (JWT signés, vérifiés par le middleware Go via clerk-sdk-go) |
+| Clé de chiffrement AES | Variable d'environnement serveur (`ENCRYPTION_KEY`, 64 hex = 32 bytes) |
+| Clé cron | Variable d'environnement (`CRON_KEY`) |
+| Clés GoCardless | Variables d'environnement (`GOCARDLESS_SECRET_ID`, `GOCARDLESS_SECRET_KEY`) |
 
-> **Note :** Le token en clair n'est jamais persisté en DB. Le client envoie le token brut, le serveur le hash SHA-256 pour comparaison.
+> **Note :** Clerk gère entièrement l'authentification. Le backend vérifie les JWT Clerk et upsert les utilisateurs en DB avec leur `clerk_user_id`.
 
 ---
 
 ## Authentification
 
-- **Session token** : UUID v4 généré à l'inscription/connexion.
-- Transmis dans `Authorization: Bearer <token>`.
-- Invalidé au logout (supprimé de la DB).
-- Pas de JWT pour simplifier la V1 (pas de gestion d'expiration côté client).
-- Rotation possible en V2.
+- **Clerk** (@clerk/expo v3 côté frontend, clerk-sdk-go v2 côté backend).
+- JWT signés par Clerk, transmis dans `Authorization: Bearer <clerk_jwt>`.
+- Le middleware Go `ClerkAuth` vérifie la signature, extrait le `Subject` (clerk_user_id), et upsert l'utilisateur en DB.
+- Déconnexion gérée par `signOut()` de Clerk.
+- Pour les App Intents : le token Clerk est dupliqué dans le Keychain partagé (App Group) pour accès natif.
 
 ---
 
@@ -73,9 +75,9 @@
 
 ## App Intents — Sécurité
 
-- Les App Intents Swift lisent le `session_token` depuis le **Keychain partagé** (App Group).
-- Chaque appel Intent → requête API avec le token → validation serveur.
-- **Cache fallback** : si le réseau est indisponible, les App Intents lisent les derniers soldes cachés dans le Keychain partagé.
+- Les App Intents Swift lisent le token Clerk depuis le **Keychain partagé** (App Group).
+- Chaque appel Intent → requête API avec le token → validation serveur via Clerk.
+- **Cache fallback** : si le réseau est indisponible, les App Intents lisent les derniers soldes cachés dans l'App Group UserDefaults.
 - **Si l'app est supprimée** : les App Intents disparaissent → les automatisations ne fonctionnent plus.
 - **Si un raccourci est partagé** : il ne contient pas le token → inutilisable par un tiers.
 - Pas de données bancaires stockées dans les Intents eux-mêmes.
@@ -86,13 +88,14 @@
 
 ```
 Algorithme : AES-256-GCM
-Clé : 32 octets (ENCRYPTION_KEY, env var)
-Nonce : 12 octets, unique par chiffrement
-Tag : 16 octets d'authentification
-Format stocké : base64(nonce || ciphertext || tag)
+Clé : 32 octets (ENCRYPTION_KEY, env var, 64 caractères hex)
+Nonce : 12 octets, unique par chiffrement (généré via crypto/rand)
+Tag : 16 octets d'authentification (intégré par GCM)
+Format stocké : hex(nonce || ciphertext || tag)
 ```
 
-Implémentation Go dans `internal/crypto/`.
+Implémentation Go dans `backend/internal/crypto/crypto.go`.
+Fonctions : `Encrypt(plaintext) → hexCiphertext` et `Decrypt(hexCiphertext) → plaintext`.
 
 ---
 
@@ -110,8 +113,7 @@ Implémentation Go dans `internal/crypto/`.
 
 ## Plan d'évolution (V2)
 
-- ~~Hashing des session tokens côté DB (bcrypt/argon2)~~ → **Implémenté en V1** (SHA-256).
-- Token rotation automatique.
+- Token rotation automatique via Clerk.
 - Biométrie (Face ID) pour accès à l'app.
 - Certificate pinning.
 - Audit de sécurité externe.
