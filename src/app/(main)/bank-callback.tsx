@@ -1,18 +1,19 @@
 /**
  * Écran de callback après authentification bancaire Open Banking.
- * Reçoit le deep link de retour GoCardless et redirige vers la sélection de comptes.
+ * Reçoit le deep link Enable Banking (code + state) et finalise la connexion.
  *
  * Route : /(main)/bank-callback
- * Deep link : wallet-balance-assistant://bank-callback?status=success
+ * Deep link : wallet-balance-assistant://bank-callback?code=xxx&state=yyy
  *
  * @module app/(main)/bank-callback
  */
 
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
+import { completeBankConnection } from '@/data/api/endpoints';
 import { useBankStore } from '@/stores/bank-store';
 import { logger } from '@/core/logger';
 import { colors } from '@/theme/colors';
@@ -21,18 +22,27 @@ import { spacing } from '@/theme/spacing';
 
 export default function BankCallbackScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ status?: string }>();
+  const params = useLocalSearchParams<{ code?: string; state?: string; error?: string }>();
   const { fetchAccounts, fetchConnections } = useBankStore();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [errorMessage, setErrorMessage] = useState<string>('La connexion a échoué.');
 
   useEffect(() => {
     async function handleCallback() {
       try {
-        if (params.status === 'error') {
+        if (params.error) {
+          setErrorMessage('Authentification annulée ou refusée par la banque.');
           setStatus('error');
           return;
         }
 
+        if (!params.code || !params.state) {
+          setErrorMessage('Paramètres de callback manquants.');
+          setStatus('error');
+          return;
+        }
+
+        await completeBankConnection(params.code, params.state);
         await Promise.all([fetchAccounts(), fetchConnections()]);
         setStatus('success');
 
@@ -40,23 +50,24 @@ export default function BankCallbackScreen() {
           router.replace('/(main)/account-selection');
         }, 1500);
       } catch (error: unknown) {
-        logger.error('Erreur callback bancaire', { error: String(error) });
+        logger.error('Erreur finalisation connexion bancaire', { error: String(error) });
+        setErrorMessage('Impossible de finaliser la connexion. Réessayez.');
         setStatus('error');
         setTimeout(() => {
           router.replace('/(main)');
-        }, 2000);
+        }, 2500);
       }
     }
 
     handleCallback();
-  }, [params.status, fetchAccounts, fetchConnections, router]);
+  }, [params.code, params.state, params.error, fetchAccounts, fetchConnections, router]);
 
   return (
     <View style={styles.container}>
       {status === 'loading' ? (
         <>
           <ActivityIndicator size="large" color={colors.accent.primary} />
-          <Text style={styles.text}>Connexion en cours...</Text>
+          <Text style={styles.text}>Finalisation de la connexion...</Text>
         </>
       ) : status === 'success' ? (
         <>
@@ -68,7 +79,14 @@ export default function BankCallbackScreen() {
         <>
           <Text style={styles.emoji}>❌</Text>
           <Text style={styles.title}>Erreur de connexion</Text>
-          <Text style={styles.text}>Retour au dashboard...</Text>
+          <Text style={styles.text}>{errorMessage}</Text>
+          <Pressable
+            style={styles.retryButton}
+            onPress={() => router.replace('/(main)/bank-connection')}
+            accessibilityLabel="Réessayer la connexion"
+          >
+            <Text style={styles.retryText}>Réessayer</Text>
+          </Pressable>
         </>
       )}
     </View>
@@ -96,5 +114,16 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.secondary,
     textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing['2xl'],
+    paddingVertical: spacing.md,
+    borderRadius: 8,
+    backgroundColor: colors.accent.primary,
+  },
+  retryText: {
+    ...typography.button,
+    color: colors.text.primary,
   },
 });

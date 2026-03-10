@@ -1,9 +1,10 @@
 /**
  * Layout du groupe main (écrans authentifiés).
- * Navigation stack pour le dashboard et les sous-écrans.
+ * Redirige vers le login si l'utilisateur n'est pas connecté via Clerk.
  */
 
-import { Stack } from 'expo-router';
+import { useAuth } from '@clerk/expo';
+import { Redirect, Stack } from 'expo-router';
 
 import { AppErrorBoundary } from '@/components/shared';
 import { colors } from '@/theme/colors';
@@ -11,6 +12,14 @@ import { colors } from '@/theme/colors';
 export { AppErrorBoundary as ErrorBoundary };
 
 export default function MainLayout() {
+  const { isSignedIn, isLoaded } = useAuth();
+
+  if (!isLoaded) return null;
+
+  if (!isSignedIn) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
   return (
     <Stack
       screenOptions={{
