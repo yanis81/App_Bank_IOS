@@ -15,22 +15,16 @@ import type {
   WalletCardMapping,
 } from '../entities';
 
-/** Contrat du repository d'authentification. */
+/** Contrat du repository d'authentification (Clerk gère l'auth, seul getMe reste). */
 export interface AuthRepository {
-  /** Inscrit un utilisateur et retourne le token de session. */
-  register(email: string, password: string): Promise<{ user: User; sessionToken: string }>;
-  /** Connecte un utilisateur et retourne le token de session. */
-  login(email: string, password: string): Promise<{ user: User; sessionToken: string }>;
-  /** Déconnecte l'utilisateur courant. */
-  logout(): Promise<void>;
   /** Récupère les infos de l'utilisateur courant. */
   getMe(): Promise<User>;
 }
 
 /** Contrat du repository bancaire. */
 export interface BankRepository {
-  /** Initie une connexion Open Banking et retourne l'URL de redirection. */
-  initiateConnection(): Promise<{ redirectUrl: string }>;
+  /** Initie une connexion Open Banking et retourne le lien d'auth + state. */
+  initiateConnection(aspspName: string, aspspCountry: string): Promise<{ link: string; state: string }>;
   /** Liste les comptes bancaires de l'utilisateur. */
   getAccounts(): Promise<BankAccount[]>;
   /** Supprime une connexion bancaire. */
