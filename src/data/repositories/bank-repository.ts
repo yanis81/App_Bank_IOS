@@ -12,7 +12,7 @@ import type { BankRepository } from '@/domain/ports';
  * Repository bancaire utilisant l'API backend.
  */
 export const bankRepository: BankRepository = {
-  initiateConnection: () => endpoints.initiateConnection(),
+  initiateConnection: (aspspName, aspspCountry) => endpoints.initiateConnection(aspspName, aspspCountry),
   getAccounts: () => endpoints.getBankAccounts(),
   deleteConnection: (connectionId) => endpoints.deleteBankConnection(connectionId),
   getConnections: () => endpoints.getBankConnections(),
