@@ -2,7 +2,7 @@
 
 > **Version** : V1  
 > **Plateforme** : iOS  
-> **Stack** : Expo (SDK 55) / React Native + TypeScript | Swift (App Intents) | Go + Chi | Supabase (Postgres)
+> **Stack** : Expo (SDK 55) / React Native + TypeScript | Swift (App Intents) | Go + Chi | Render (Postgres)
 
 ---
 
