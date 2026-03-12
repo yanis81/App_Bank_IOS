@@ -51,10 +51,10 @@ func bestBalance(balances []banking.BalanceItem) (amount float64, currency strin
 
 // Handlers contient tous les handlers HTTP.
 type Handlers struct {
-	repo    *repository.Repository
-	bank    *banking.Client
-	crypto  *crypto.Service
-	cfg     *HandlersConfig
+	repo   *repository.Repository
+	bank   *banking.Client
+	crypto *crypto.Service
+	cfg    *HandlersConfig
 }
 
 // HandlersConfig contient la configuration nécessaire aux handlers.
@@ -159,6 +159,9 @@ func (h *Handlers) GetBalanceSummary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "INTERNAL", "Erreur serveur")
 		return
 	}
+	if summary.Accounts == nil {
+		summary.Accounts = []models.BalanceSummaryItem{}
+	}
 	writeJSON(w, http.StatusOK, summary)
 }
 
@@ -244,9 +247,9 @@ func (h *Handlers) GetSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Pas de settings = retourner les valeurs par défaut
 		writeJSON(w, http.StatusOK, map[string]interface{}{
-			"userId":       userID,
+			"userId":        userID,
 			"refreshPerDay": 2,
-			"privacyMode":  false,
+			"privacyMode":   false,
 		})
 		return
 	}

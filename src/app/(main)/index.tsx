@@ -143,7 +143,7 @@ export default function DashboardScreen() {
             <Text style={styles.balanceTitle}>💳 Vos soldes</Text>
             <FreshnessIndicator lastUpdated={balanceSummary.lastUpdated} />
           </View>
-          {balanceSummary.accounts.map((account, index) => (
+          {(balanceSummary.accounts ?? []).map((account, index) => (
             <View key={`${account.label}-${index}`} style={styles.balanceRow}>
               <Text style={styles.accountLabel}>{account.label}</Text>
               <Text style={styles.accountAmount}>
