@@ -82,8 +82,8 @@ type BalanceSummary struct {
 
 // WalletCardBalance est le solde pour une carte Wallet (notification post-paiement).
 type WalletCardBalance struct {
-	AccountLabel string  `json:"accountLabel"`
-	Amount       float64 `json:"amount"`
-	Currency     string  `json:"currency"`
+	AccountLabel string    `json:"accountLabel"`
+	Amount       float64   `json:"amount"`
+	Currency     string    `json:"currency"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 }

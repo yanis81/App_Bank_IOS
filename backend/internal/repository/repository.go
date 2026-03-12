@@ -345,6 +345,7 @@ func (r *Repository) CreateAuditLog(ctx context.Context, userID, action string, 
 	}
 	return nil
 }
+
 // ─── Bank Connections (extended) ───────────────────────
 
 // GetAllActiveBankConnections récupère toutes les connexions actives (pour le cron refresh).
@@ -403,6 +404,7 @@ func (r *Repository) UpdateBankConnectionRequisition(ctx context.Context, connec
 	}
 	return nil
 }
+
 // ─── Helper types ────────────────────────────────────────
 
 // NotificationSettingsForUpsert est un helper pour construire les settings avant upsert.
