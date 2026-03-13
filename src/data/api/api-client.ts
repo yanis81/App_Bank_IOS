@@ -108,9 +108,14 @@ export async function apiRequest<T>(options: RequestOptions): Promise<T> {
     }
 
     if (retryCount < MAX_RETRY_ATTEMPTS && error instanceof NetworkError) {
-      logger.warn(`Retry ${retryCount + 1}/${MAX_RETRY_ATTEMPTS} pour ${method} ${path}`);
-      await wait(retryCount);
-      return apiRequest<T>({ ...options, retryCount: retryCount + 1 });
+      // Ne retry que sur les vraies erreurs réseau (timeout, connexion perdue).
+      // Les erreurs HTTP du backend (4xx/5xx) ne doivent pas être rejouées.
+      const httpStatus = error.context?.['status'] as number | undefined;
+      if (!httpStatus) {
+        logger.warn(`Retry ${retryCount + 1}/${MAX_RETRY_ATTEMPTS} pour ${method} ${path}`);
+        await wait(retryCount);
+        return apiRequest<T>({ ...options, retryCount: retryCount + 1 });
+      }
     }
 
     throw error;

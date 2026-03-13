@@ -133,7 +133,7 @@ func (c *Client) generateJWT() (string, error) {
 		"kid": c.appID,
 	}
 	payload := map[string]interface{}{
-		"iss": "enablebanking.com",
+		"iss": c.appID,
 		"aud": "api.enablebanking.com",
 		"iat": now.Unix(),
 		"exp": now.Add(time.Hour).Unix(),

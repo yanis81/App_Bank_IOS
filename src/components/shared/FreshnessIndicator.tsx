@@ -18,14 +18,15 @@ import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/shared';
 
 interface FreshnessIndicatorProps {
-  /** ISO 8601 date de la dernière mise à jour. */
-  lastUpdated: string;
+  /** ISO 8601 date de la dernière mise à jour. Peut être absent (cache vide). */
+  lastUpdated: string | undefined;
 }
 
 /**
  * Détermine la couleur de l'indicateur selon l'ancienneté.
  */
-function getFreshnessColor(lastUpdated: string): string {
+function getFreshnessColor(lastUpdated: string | undefined): string {
+  if (!lastUpdated) return colors.semantic.warning;
   const diffMs = Date.now() - new Date(lastUpdated).getTime();
   const diffMinutes = diffMs / (1000 * 60);
 

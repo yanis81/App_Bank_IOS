@@ -23,11 +23,13 @@ export function formatCurrency(amount: number, currency: string = 'EUR'): string
 /**
  * Calcule et formate le temps écoulé en minutes depuis un timestamp.
  *
- * @param timestamp - Date ISO ou objet Date de référence.
- * @returns Texte lisible du type "il y a X min".
+ * @param timestamp - Date ISO ou objet Date de référence. Retourne '-' si absent ou invalide.
+ * @returns Texte lisible du type "il y a X min", ou '-' si le timestamp est invalide.
  */
-export function formatTimeAgo(timestamp: string | Date): string {
+export function formatTimeAgo(timestamp: string | Date | undefined | null): string {
+  if (!timestamp) return '-';
   const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+  if (isNaN(date.getTime())) return '-';
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60_000);

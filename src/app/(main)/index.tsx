@@ -8,6 +8,7 @@ import { useEffect, useCallback } from 'react';
 import {
   View,
   Text,
+  ActivityIndicator,
   StyleSheet,
   ScrollView,
   RefreshControl,
@@ -23,6 +24,7 @@ import { ConsentExpiryBanner } from '@/components/shared';
 import { FreshnessIndicator } from '@/components/shared';
 import { SkeletonBalanceCard, SkeletonActionList } from '@/components/ui/Skeleton';
 import { useBankStore } from '@/stores/bank-store';
+import { useWarmupStore } from '@/stores/warmup-store';
 import { useOnboardingProgress } from '@/hooks/useOnboardingProgress';
 import { isConnectionExpiringSoon } from '@/domain/entities';
 import { formatCurrency } from '@/core/utils';
@@ -48,11 +50,15 @@ export default function DashboardScreen() {
 
   const { pendingSteps, completedSteps, totalSteps, isFullyConfigured } = useOnboardingProgress();
 
+  const warmupStatus = useWarmupStore((s) => s.status);
+  const isWarming = warmupStatus === 'idle' || warmupStatus === 'warming';
+
   useEffect(() => {
+    if (warmupStatus !== 'ready' && warmupStatus !== 'timeout') return;
     fetchBalanceSummary();
     fetchAccounts();
     fetchConnections();
-  }, [fetchBalanceSummary, fetchAccounts, fetchConnections]);
+  }, [warmupStatus, fetchBalanceSummary, fetchAccounts, fetchConnections]);
 
   const onRefresh = useCallback(() => {
     fetchBalanceSummary();
@@ -99,6 +105,14 @@ export default function DashboardScreen() {
           <Text style={styles.settingsIcon}>⚙️</Text>
         </Pressable>
       </View>
+
+      {/* Bannière de réveil serveur */}
+      {isWarming ? (
+        <View style={styles.warmupBanner}>
+          <ActivityIndicator size="small" color={colors.accent.primary} />
+          <Text style={styles.warmupText}>Connexion au serveur en cours…</Text>
+        </View>
+      ) : null}
 
       {/* Bannières d'expiration GoCardless */}
       {expiringConnections.map((connection) => (
@@ -258,6 +272,20 @@ const styles = StyleSheet.create({
   },
   settingsIcon: {
     fontSize: 20,
+  },
+  warmupBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
+  },
+  warmupText: {
+    ...typography.small,
+    color: colors.text.secondary,
   },
   bannerWrapper: {
     marginBottom: spacing.md,

@@ -622,15 +622,15 @@ func (h *Handlers) RefreshBalances(w http.ResponseWriter, r *http.Request) {
 // ─── Bank Callback ──────────────────────────────────────
 
 // BankCallback reçoit le code + state d'Enable Banking après authentification PSU.
-// Redirige en 302 vers le deep link de l'app avec les mêmes paramètres.
+// Affiche une page HTML intermédiaire qui tente d'ouvrir le deep link de l'app.
+// Fonctionne en développement (Expo Go) et en production (app native).
 // Cette route est publique (pas d'auth Clerk) car appelée par le navigateur après redirect bancaire.
 func (h *Handlers) BankCallback(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
-	error := r.URL.Query().Get("error")
+	errParam := r.URL.Query().Get("error")
 
-	if error != "" {
-		// L'utilisateur a annulé ou une erreur s'est produite côté banque
+	if errParam != "" {
 		pageWithMessage(w, "Connexion annulée", "La connexion bancaire a été annulée ou a échoué. Vous pouvez fermer cette page.")
 		return
 	}
@@ -640,9 +640,42 @@ func (h *Handlers) BankCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Rediriger vers le deep link de l'app iOS
-	deepLink := fmt.Sprintf("wallet-balance-assistant://bank-callback?code=%s&state=%s", code, state)
-	http.Redirect(w, r, deepLink, http.StatusFound)
+	deepLink := fmt.Sprintf("wallet-balance-assistant://bank-callback?code=%s&state=%s",
+		code, state)
+
+	pageWithDeepLink(w, deepLink)
+}
+
+// pageWithDeepLink affiche une page HTML qui tente d'ouvrir le deep link iOS de l'app.
+// Active à la fois l'ouverture automatique (JS) et un bouton de secours.
+func pageWithDeepLink(w http.ResponseWriter, deepLink string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>Retour vers l'application</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:system-ui,-apple-system;display:flex;flex-direction:column;align-items:center;
+       justify-content:center;min-height:100vh;margin:0;background:#0f0e17;color:#fff;text-align:center;padding:2rem}
+  h1{font-size:1.3rem;margin-bottom:.5rem}
+  p{color:#a0a0b0;font-size:.95rem;max-width:320px;margin-bottom:2rem}
+  a{display:inline-block;padding:.9rem 2rem;background:#6366f1;color:#fff;border-radius:12px;
+    text-decoration:none;font-weight:600;font-size:1rem}
+  a:active{opacity:.8}
+  .sub{margin-top:1.5rem;font-size:.8rem;color:#555}
+</style>
+</head><body>
+<h1>✅ Authentification réussie</h1>
+<p>Retournez dans l'application pour finaliser la connexion bancaire.</p>
+<a href="%s">Ouvrir l'application</a>
+<p class="sub">Si le bouton ne fonctionne pas, rouvrez manuellement l'application.</p>
+<script>
+  // Tentative d'ouverture automatique après 300ms
+  setTimeout(function(){ window.location.href = "%s"; }, 300);
+</script>
+</body></html>`, deepLink, deepLink)
 }
 
 // pageWithMessage affiche une page HTML simple pour les erreurs de callback.

@@ -20,6 +20,15 @@
 | 7 | **Mode confidentialité** — Montants masqués `••••••` sur le dashboard et notifications | `app/(main)/index.tsx`, `app/(main)/settings.tsx` | ✅ |
 | 8 | **Audit log** — Type `AuditLogEntry` + table `audit_log` en DB pour traçabilité | `domain/entities/`, `#documentation/database.md` | ✅ |
 
+### Session 3 — Stabilité & cold start (2 améliorations)
+
+| # | Amélioration | Fichiers | Statut |
+|---|---|---|---|
+| 19 | **Warm-up serveur Render** — Ping `GET /health` au démarrage pour réveiller le free tier avant les appels API | `data/api/warmup.ts`, `stores/warmup-store.ts`, `app/(main)/_layout.tsx`, `app/(main)/index.tsx` | ✅ |
+| 20 | **Guard `formatTimeAgo` + `FreshnessIndicator`** — Protection contre `undefined` sur `lastUpdated` quand le cache est vide | `core/utils/format-currency.ts`, `components/shared/FreshnessIndicator.tsx` | ✅ |
+
+---
+
 ### Session 2 — Qualité & UX (10 améliorations)
 
 | # | Amélioration | Fichiers | Statut |
@@ -87,4 +96,4 @@
 
 ---
 
-*Dernière mise à jour : 4 mars 2026*
+*Dernière mise à jour : 13 mars 2026*

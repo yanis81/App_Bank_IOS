@@ -1,18 +1,27 @@
 /**
  * Layout du groupe main (écrans authentifiés).
  * Redirige vers le login si l'utilisateur n'est pas connecté via Clerk.
+ * Déclenche le warm-up serveur dès l'entrée dans la zone authentifiée.
  */
+
+import { useEffect } from 'react';
 
 import { useAuth } from '@clerk/expo';
 import { Redirect, Stack } from 'expo-router';
 
 import { AppErrorBoundary } from '@/components/shared';
+import { useWarmupStore } from '@/stores/warmup-store';
 import { colors } from '@/theme/colors';
 
 export { AppErrorBoundary as ErrorBoundary };
 
 export default function MainLayout() {
   const { isSignedIn, isLoaded } = useAuth();
+  const startWarmup = useWarmupStore((s) => s.startWarmup);
+
+  useEffect(() => {
+    startWarmup();
+  }, [startWarmup]);
 
   if (!isLoaded) return null;
 
