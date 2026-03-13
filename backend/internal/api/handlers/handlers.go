@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -691,8 +692,23 @@ func pageWithMessage(w http.ResponseWriter, title, message string) {
 
 // ─── Health ──────────────────────────────────────────────
 
-// HealthCheck retourne l'état du serveur.
+// HealthCheck retourne l'état du serveur et vérifie la connexion DB.
+// Utilisé par le warmup frontend pour savoir quand le backend est prêt.
 func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	if err := h.repo.Ping(ctx); err != nil {
+		slog.Warn("Health check DB échoué", "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  "db_unavailable",
+			"version": "1.0.0",
+		})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]string{
 		"status":  "ok",
 		"version": "1.0.0",

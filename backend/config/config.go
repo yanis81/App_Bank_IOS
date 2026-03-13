@@ -27,7 +27,7 @@ func (c *Config) BankRedirectURL() string {
 	if c.Environment == "production" {
 		return "https://walletbalance.app/bank-callback"
 	}
-	return "http://localhost:8081/bank-callback"
+	return "http://localhost:8080/bank-callback"
 }
 
 // Load charge la configuration depuis les variables d'environnement.

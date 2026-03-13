@@ -19,6 +19,11 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
+// Ping vérifie que la connexion à la base de données est active.
+func (r *Repository) Ping(ctx context.Context) error {
+	return r.pool.Ping(ctx)
+}
+
 // ─── Users ───────────────────────────────────────────────
 
 // UpsertUser crée ou met à jour un utilisateur à partir des données Clerk.
