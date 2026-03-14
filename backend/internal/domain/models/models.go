@@ -6,7 +6,7 @@ import "time"
 type User struct {
 	ID               string    `json:"id"`
 	ClerkUserID      string    `json:"clerkUserId"`
-	Email            string    `json:"email"`
+	Email            *string   `json:"email"`
 	SessionTokenHash *string   `json:"-"`
 	CreatedAt        time.Time `json:"createdAt"`
 	UpdatedAt        time.Time `json:"updatedAt"`

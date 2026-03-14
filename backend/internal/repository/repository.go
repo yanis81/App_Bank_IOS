@@ -29,17 +29,22 @@ func (r *Repository) Ping(ctx context.Context) error {
 // ─── Users ───────────────────────────────────────────────
 
 // UpsertUser crée ou met à jour un utilisateur à partir des données Clerk.
+// email peut être vide — il sera stocké NULL si non fourni.
 func (r *Repository) UpsertUser(ctx context.Context, clerkUserID, email string) (*models.User, error) {
 	var user models.User
+	var emailParam *string
+	if email != "" {
+		emailParam = &email
+	}
 	err := r.pool.QueryRow(ctx, `
 		INSERT INTO users (clerk_user_id, email)
-		VALUES ($1, COALESCE(NULLIF($2, ''), 'unknown@placeholder'))
+		VALUES ($1, $2)
 		ON CONFLICT (clerk_user_id)
 		DO UPDATE SET
-			email = CASE WHEN EXCLUDED.email != 'unknown@placeholder' THEN EXCLUDED.email ELSE users.email END,
+			email = CASE WHEN EXCLUDED.email IS NOT NULL THEN EXCLUDED.email ELSE users.email END,
 			updated_at = NOW()
 		RETURNING id, clerk_user_id, email, created_at, updated_at
-	`, clerkUserID, email).Scan(&user.ID, &user.ClerkUserID, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+	`, clerkUserID, emailParam).Scan(&user.ID, &user.ClerkUserID, &user.Email, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("upsert user: %w", err)
 	}
