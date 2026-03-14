@@ -18,6 +18,7 @@ import {
 import { useRouter } from 'expo-router';
 
 import { getInstitutions, initiateConnection } from '@/data/api/endpoints';
+import { useWarmupStore } from '@/stores/warmup-store';
 import { logger } from '@/core/logger';
 import { colors } from '@/theme/colors';
 import { typography } from '@/theme/typography';
@@ -27,6 +28,7 @@ import type { Institution } from '@/domain/entities';
 
 export default function BankConnectionScreen() {
   const router = useRouter();
+  const warmupStatus = useWarmupStore((s) => s.status);
   const [step, setStep] = useState<'select' | 'connecting'>('select');
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [filtered, setFiltered] = useState<Institution[]>([]);
@@ -37,6 +39,7 @@ export default function BankConnectionScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (warmupStatus !== 'ready' && warmupStatus !== 'timeout') return;
     getInstitutions('FR')
       .then((list) => {
         setInstitutions(list);
@@ -47,7 +50,7 @@ export default function BankConnectionScreen() {
         setError('Impossible de charger la liste des banques.');
       })
       .finally(() => setIsLoadingList(false));
-  }, []);
+  }, [warmupStatus]);
 
   const handleSearch = useCallback((text: string) => {
     setSearch(text);

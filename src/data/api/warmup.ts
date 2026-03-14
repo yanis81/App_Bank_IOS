@@ -16,6 +16,9 @@ const HEALTH_URL = `${env.API_BASE_URL}/health`;
 const PING_TIMEOUT_MS = 8_000;
 const PING_INTERVAL_MS = 5_000;
 const MAX_ATTEMPTS = 12; // 12 × 5s = 60s max
+// Délai après le premier 200 : laisse Neon stabiliser ses connexions avant
+// que les vraies requêtes (INSERT users, SELECT bank_accounts…) soient envoyées.
+const STABILIZATION_DELAY_MS = 800;
 
 /**
  * Tente un ping unique vers `/health`.
@@ -49,6 +52,7 @@ export async function pingUntilAlive(onAttempt?: (attempt: number) => void): Pro
 
     const alive = await ping();
     if (alive) {
+      await new Promise<void>((resolve) => setTimeout(resolve, STABILIZATION_DELAY_MS));
       logger.info('Serveur prêt', { attempt });
       return true;
     }

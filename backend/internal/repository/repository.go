@@ -19,9 +19,11 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-// Ping vérifie que la connexion à la base de données est active.
+// Ping vérifie que la connexion à la base de données est active en exécutant une vraie requête.
+// pool.Ping n'envoie qu'un message sync PostgreSQL (insuffisant pour Neon cold start).
 func (r *Repository) Ping(ctx context.Context) error {
-	return r.pool.Ping(ctx)
+	var result int
+	return r.pool.QueryRow(ctx, "SELECT 1").Scan(&result)
 }
 
 // ─── Users ───────────────────────────────────────────────
