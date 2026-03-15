@@ -16,7 +16,7 @@ import {
   Linking,
 } from 'react-native';
 
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 
 import { useUser } from '@clerk/expo';
 
@@ -45,6 +45,8 @@ export default function DashboardScreen() {
     fetchBalanceSummary,
     fetchAccounts,
     fetchConnections,
+    fetchSettings,
+    fetchCardMappings,
     renewConsent,
   } = useBankStore();
 
@@ -53,18 +55,35 @@ export default function DashboardScreen() {
   const warmupStatus = useWarmupStore((s) => s.status);
   const isWarming = warmupStatus === 'idle' || warmupStatus === 'warming';
 
+  // Chargement initial déclenché par la fin du warm-up serveur.
   useEffect(() => {
     if (warmupStatus !== 'ready' && warmupStatus !== 'timeout') return;
     fetchBalanceSummary();
     fetchAccounts();
     fetchConnections();
-  }, [warmupStatus, fetchBalanceSummary, fetchAccounts, fetchConnections]);
+    fetchSettings();
+    fetchCardMappings();
+  }, [warmupStatus, fetchBalanceSummary, fetchAccounts, fetchConnections, fetchSettings, fetchCardMappings]);
+
+  // Re-fetch à chaque fois que l'écran reprend le focus (retour depuis une sous-route).
+  useFocusEffect(
+    useCallback(() => {
+      if (warmupStatus !== 'ready' && warmupStatus !== 'timeout') return;
+      fetchBalanceSummary();
+      fetchAccounts();
+      fetchConnections();
+      fetchSettings();
+      fetchCardMappings();
+    }, [warmupStatus, fetchBalanceSummary, fetchAccounts, fetchConnections, fetchSettings, fetchCardMappings])
+  );
 
   const onRefresh = useCallback(() => {
     fetchBalanceSummary();
     fetchAccounts();
     fetchConnections();
-  }, [fetchBalanceSummary, fetchAccounts, fetchConnections]);
+    fetchSettings();
+    fetchCardMappings();
+  }, [fetchBalanceSummary, fetchAccounts, fetchConnections, fetchSettings, fetchCardMappings]);
 
   const handleRenewConsent = useCallback(async (connectionId: string) => {
     const conn = connections.find((c) => c.id === connectionId);

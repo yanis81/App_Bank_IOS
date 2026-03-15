@@ -54,6 +54,7 @@
 |---|---|---|---|
 | F1 | **Animations de transition** | Utiliser React Native Reanimated pour des transitions entre écrans, reveal de montants, animations de cartes | UX premium |
 | F2 | **Pull-to-refresh haptique** | Combiner `RefreshControl` avec haptic feedback au déclenchement + animation de succès | UX |
+| F21 | **Rafraîchissement des soldes depuis l'app** | Ajouter un endpoint backend `POST /api/v1/balances/refresh` protégé par la session utilisateur (pas par X-Cron-Key). Le backend appelle Enable Banking en temps réel pour les comptes de l'utilisateur et met à jour la DB. Le pull-to-refresh du dashboard déclenchera ce vrai refresh au lieu de simplement relire la DB. | UX essentielle |
 | F3 | **Écran "Détail compte"** | Voir l'historique des soldes d'un compte sur les 30 derniers jours (tableau ou mini-graphe) | Fonctionnel |
 | F4 | **Widget iOS** | Widget Today/Lock Screen affichant le solde du compte principal (WidgetKit + SwiftUI) | Fonctionnel clé |
 | F5 | **Gestion multi-banques** | Supporter la connexion de plusieurs banques avec regroupement visuel | Fonctionnel |
@@ -85,6 +86,43 @@
 
 ---
 
+## Checklist mise en production
+
+### Infrastructure (Render)
+| # | Tâche | Statut |
+|---|---|---|
+| P1 | `CRON_KEY` définie sur Render (`fafayaya2026` ou autre) | ✅ |
+| P2 | Toutes les variables d'env Render renseignées (`DATABASE_URL`, `CLERK_SECRET_KEY`, `ENCRYPTION_KEY`, `ENABLE_BANKING_APP_ID`, `ENABLE_BANKING_PRIVATE_KEY`, `APP_URL`) | À vérifier |
+| P3 | GitHub Actions cron configuré pour appeler `POST /api/v1/jobs/refresh-balances` toutes les X heures avec `X-Cron-Key` | ❌ À faire |
+
+### GitHub Actions — cron refresh balances
+Créer `.github/workflows/refresh-balances.yml` :
+```yaml
+name: Refresh Balances
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # toutes les 6h
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger balance refresh
+        run: |
+          curl -X POST ${{ secrets.API_URL }}/api/v1/jobs/refresh-balances \
+            -H "X-Cron-Key: ${{ secrets.CRON_KEY }}"
+```
+Secrets GitHub à ajouter : `API_URL=https://app-bank-ios.onrender.com` et `CRON_KEY=fafayaya2026`.
+
+### App mobile (avant release App Store)
+| # | Tâche | Statut |
+|---|---|---|
+| P4 | Build EAS production (`eas build --platform ios --profile production`) | ❌ |
+| P5 | App Group configuré dans les Capabilities Xcode (`group.com.walletbalance.app`) | ❌ |
+| P6 | App Intents Swift compilés et testés sur vrai device | ❌ |
+| P7 | TestFlight distribué pour tests utilisateurs | ❌ |
+
+---
+
 ## Notes techniques
 
 - **expo-crypto** : Utilisé pour SHA-256 (hashing tokens). Compatible iOS/Android.
@@ -96,4 +134,4 @@
 
 ---
 
-*Dernière mise à jour : 13 mars 2026*
+*Dernière mise à jour : 14 mars 2026*

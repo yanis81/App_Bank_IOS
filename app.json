@@ -42,7 +42,8 @@
           "color": "#4F78FF"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "./plugins/withAppIntents"
     ],
     "experiments": {
       "typedRoutes": true

@@ -23,7 +23,7 @@ import { spacing } from '@/theme/spacing';
 export default function BankCallbackScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ code?: string; state?: string; error?: string }>();
-  const { fetchAccounts, fetchConnections } = useBankStore();
+  const { fetchAccounts, fetchConnections, fetchSettings } = useBankStore();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('La connexion a échoué.');
 
@@ -43,7 +43,7 @@ export default function BankCallbackScreen() {
         }
 
         await completeBankConnection(params.code, params.state);
-        await Promise.all([fetchAccounts(), fetchConnections()]);
+        await Promise.all([fetchAccounts(), fetchConnections(), fetchSettings()]);
         setStatus('success');
 
         setTimeout(() => {
@@ -60,7 +60,7 @@ export default function BankCallbackScreen() {
     }
 
     handleCallback();
-  }, [params.code, params.state, params.error, fetchAccounts, fetchConnections, router]);
+  }, [params.code, params.state, params.error, fetchAccounts, fetchConnections, fetchSettings, router]);
 
   return (
     <View style={styles.container}>
