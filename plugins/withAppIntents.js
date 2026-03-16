@@ -66,22 +66,27 @@ function withRegisterAppIntents(config) {
 
     const mainTargetUuid = proj.getFirstTarget().uuid;
 
-    // Créer le groupe "AppIntents" dans le projet Xcode
+    // Chercher le sous-groupe source par PATH (ex: path = 'WalletBalanceAssistant')
+    // et non par name, pour éviter de retomber sur le groupe racine.
+    // Ce groupe a path = projectName et est ancré dans ios/ → ios/WalletBalanceAssistant/
+    const sourceGroupKey = proj.findPBXGroupKey({ path: projectName });
+
+    // Créer le groupe AppIntents avec path = 'AppIntents' (relatif au parent)
+    // → si parent = ios/WalletBalanceAssistant/, le groupe résout à ios/WalletBalanceAssistant/AppIntents/
     const { uuid: appIntentsGroupKey } = proj.addPbxGroup([], 'AppIntents', 'AppIntents');
 
-    // Rattacher ce groupe au groupe principal du projet
-    const mainGroupKey = proj.findPBXGroupKey({ name: projectName });
-    if (mainGroupKey) {
-      const mainGroup = proj.getPBXGroupByKey(mainGroupKey);
-      if (mainGroup && mainGroup.children) {
-        mainGroup.children.push({ value: appIntentsGroupKey, comment: 'AppIntents' });
+    // Rattacher le groupe AppIntents au sous-groupe source
+    if (sourceGroupKey) {
+      const sourceGroup = proj.getPBXGroupByKey(sourceGroupKey);
+      if (sourceGroup && sourceGroup.children) {
+        sourceGroup.children.push({ value: appIntentsGroupKey, comment: 'AppIntents' });
       }
     }
 
+    // Ajouter chaque fichier avec uniquement le NOM (relatif au groupe AppIntents)
+    // → Xcode résout : ios/WalletBalanceAssistant/AppIntents/<fileName>
     for (const fileName of files) {
-      const filePath = `${projectName}/AppIntents/${fileName}`;
-      // addSourceFile avec group → utilise addFile (pas addPluginFile) → pas de crash
-      proj.addSourceFile(filePath, { target: mainTargetUuid }, appIntentsGroupKey);
+      proj.addSourceFile(fileName, { target: mainTargetUuid }, appIntentsGroupKey);
     }
 
     return config;
