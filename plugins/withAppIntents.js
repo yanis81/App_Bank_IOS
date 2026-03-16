@@ -49,6 +49,10 @@ function withCopyAppIntents(config) {
  * Étape 2 — Enregistrement dans le .pbxproj.
  * Ajoute les fichiers à la PBXSourcesBuildPhase du target principal,
  * ce qui déclenche "Extract App Intents Metadata" à la compilation.
+ *
+ * IMPORTANT : on DOIT passer un groupKey à addSourceFile pour éviter
+ * addPluginFile → correctForPluginsPath qui crash si aucun groupe "Plugins"
+ * n'existe dans le projet Xcode (TypeError: Cannot read property 'path' of null).
  */
 function withRegisterAppIntents(config) {
   return withXcodeProject(config, (config) => {
@@ -62,12 +66,22 @@ function withRegisterAppIntents(config) {
 
     const mainTargetUuid = proj.getFirstTarget().uuid;
 
+    // Créer le groupe "AppIntents" dans le projet Xcode
+    const { uuid: appIntentsGroupKey } = proj.addPbxGroup([], 'AppIntents', 'AppIntents');
+
+    // Rattacher ce groupe au groupe principal du projet
+    const mainGroupKey = proj.findPBXGroupKey({ name: projectName });
+    if (mainGroupKey) {
+      const mainGroup = proj.getPBXGroupByKey(mainGroupKey);
+      if (mainGroup && mainGroup.children) {
+        mainGroup.children.push({ value: appIntentsGroupKey, comment: 'AppIntents' });
+      }
+    }
+
     for (const fileName of files) {
-      // Chemin relatif tel qu'attendu par Xcode
       const filePath = `${projectName}/AppIntents/${fileName}`;
-      // addSourceFile(path, opt, group) : sans group → ajout au target via addPluginFile
-      // opt.target = UUID du target principal → ajout à la bonne PBXSourcesBuildPhase
-      proj.addSourceFile(filePath, { target: mainTargetUuid });
+      // addSourceFile avec group → utilise addFile (pas addPluginFile) → pas de crash
+      proj.addSourceFile(filePath, { target: mainTargetUuid }, appIntentsGroupKey);
     }
 
     return config;
