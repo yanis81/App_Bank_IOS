@@ -19,6 +19,7 @@ import {
   renewBankConsent,
 } from '@/data/api/endpoints';
 import { cacheBalanceSummary, getCachedBalanceSummary } from '@/data/storage/shared-cache';
+import { walletBridgeService } from '@/data/storage/wallet-bridge';
 import type {
   BankAccount,
   BankConnection,
@@ -116,6 +117,11 @@ export const useBankStore = create<BankState & BankActions>((set) => ({
       set({ isLoading: true, error: null });
       const balanceSummary = await getBalanceSummary();
       await cacheBalanceSummary(balanceSummary);
+
+      // Écrire aussi dans les UserDefaults App Group pour les App Intents Swift
+      const privacyMode = useBankStore.getState().notificationSettings?.privacyMode ?? false;
+      walletBridgeService.setCachedBalances(balanceSummary, privacyMode);
+
       set({ balanceSummary, isLoading: false });
     } catch (error: unknown) {
       logger.error('Erreur chargement soldes', { error: String(error) });

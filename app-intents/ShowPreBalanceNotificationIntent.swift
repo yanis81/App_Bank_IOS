@@ -1,6 +1,9 @@
 import AppIntents
 import Foundation
 import UserNotifications
+import os
+
+private let intentLogger = Logger(subsystem: "com.walletbalance.assistant", category: "PreBalanceIntent")
 
 /// Intent iOS pour afficher les soldes pré-paiement.
 /// Déclenché via l'automatisation Raccourcis : ouverture de l'app Wallet.
@@ -17,21 +20,33 @@ struct ShowPreBalanceNotificationIntent: AppIntent {
     private let apiBaseURL = "https://app-bank-ios.onrender.com"
 
     func perform() async throws -> some IntentResult {
+        intentLogger.info("ShowPreBalanceNotificationIntent: perform() appelé")
+
         // 1. Lire les soldes depuis le cache local (< 1 seconde)
         let defaults = UserDefaults(suiteName: appGroupID)
         let cachedJSON = defaults?.string(forKey: cacheKey)
         let cacheTimestamp = defaults?.double(forKey: "\(cacheKey)_timestamp") ?? 0
 
+        intentLogger.info("Cache trouvé: \(cachedJSON != nil), timestamp: \(cacheTimestamp)")
+
         if let jsonData = cachedJSON?.data(using: .utf8) {
             let balances = try? JSONDecoder().decode(CachedBalances.self, from: jsonData)
             if let balances = balances {
+                intentLogger.info("Balances décodées: \(balances.accounts.count) compte(s)")
                 let minutesAgo = Int((Date().timeIntervalSince1970 - cacheTimestamp) / 60)
                 await sendNotification(balances: balances, minutesAgo: minutesAgo)
+            } else {
+                intentLogger.error("Échec décodage JSON des balances")
             }
+        } else {
+            intentLogger.warning("Aucun cache de soldes trouvé dans UserDefaults App Group")
         }
 
         // 2. En parallèle, tenter un refresh API si un token est disponible
-        if let token = KeychainReader.load(key: tokenKey, appGroup: appGroupID) {
+        let token = KeychainReader.load(key: tokenKey, appGroup: appGroupID)
+        intentLogger.info("Token Keychain App Group: \(token != nil ? "présent" : "absent")")
+
+        if let token = token {
             Task {
                 await refreshBalancesFromAPI(token: token, defaults: defaults)
             }
