@@ -66,25 +66,28 @@ function withRegisterAppIntents(config) {
 
     const mainTargetUuid = proj.getFirstTarget().uuid;
 
-    // Chercher le sous-groupe source par PATH (ex: path = 'WalletBalanceAssistant')
-    // et non par name, pour éviter de retomber sur le groupe racine.
-    // Ce groupe a path = projectName et est ancré dans ios/ → ios/WalletBalanceAssistant/
-    const sourceGroupKey = proj.findPBXGroupKey({ path: projectName });
+    // Obtenir la clé du groupe racine via getFirstProject().firstProject.mainGroup.
+    // C'est la seule méthode fiable — findPBXGroupKey({ path/name }) peut retourner
+    // null sur les projets Expo SDK 55 dont le groupe source n'a pas de path défini.
+    const rootGroupKey = proj.getFirstProject().firstProject.mainGroup;
 
-    // Créer le groupe AppIntents avec path = 'AppIntents' (relatif au parent)
-    // → si parent = ios/WalletBalanceAssistant/, le groupe résout à ios/WalletBalanceAssistant/AppIntents/
-    const { uuid: appIntentsGroupKey } = proj.addPbxGroup([], 'AppIntents', 'AppIntents');
+    // Créer le groupe AppIntents avec CHEMIN COMPLET relatif à ios/.
+    // ios/ est l'ancre du groupe racine (sourceTree = "<group>" sans path propre).
+    // → ios/ + WalletBalanceAssistant/AppIntents/ = ios/WalletBalanceAssistant/AppIntents/
+    const { uuid: appIntentsGroupKey } = proj.addPbxGroup(
+      [],
+      'AppIntents',
+      `${projectName}/AppIntents`
+    );
 
-    // Rattacher le groupe AppIntents au sous-groupe source
-    if (sourceGroupKey) {
-      const sourceGroup = proj.getPBXGroupByKey(sourceGroupKey);
-      if (sourceGroup && sourceGroup.children) {
-        sourceGroup.children.push({ value: appIntentsGroupKey, comment: 'AppIntents' });
-      }
+    // Rattacher au groupe racine
+    const rootGroup = proj.getPBXGroupByKey(rootGroupKey);
+    if (rootGroup && rootGroup.children) {
+      rootGroup.children.push({ value: appIntentsGroupKey, comment: 'AppIntents' });
     }
 
-    // Ajouter chaque fichier avec uniquement le NOM (relatif au groupe AppIntents)
-    // → Xcode résout : ios/WalletBalanceAssistant/AppIntents/<fileName>
+    // Ajouter les fichiers avec uniquement le NOM (relatif au path du groupe).
+    // Résolution finale : ios/WalletBalanceAssistant/AppIntents/<fileName> ✓
     for (const fileName of files) {
       proj.addSourceFile(fileName, { target: mainTargetUuid }, appIntentsGroupKey);
     }
